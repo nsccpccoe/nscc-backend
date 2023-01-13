@@ -6,7 +6,7 @@ import routes from './router/routes'
 // Create an Express object and routes (in order)
 const app = express();
 
-app.use('/',routes);
+app.use('/webxplore',routes);
 
 
 
