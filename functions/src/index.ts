@@ -2,7 +2,6 @@ import * as functions from "firebase-functions";
 import * as express from 'express';
 import routes from './router/routes'
 
-
 // Create an Express object and routes (in order)
 const app = express();
 
