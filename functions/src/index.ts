@@ -1,6 +1,6 @@
 import * as functions from "firebase-functions";
 import webxploreService from "./webxplore/webxplore-service";
-import * as acc from "./accounts";
+import * as acc from "./accounts/accounts";
 
 // Create an Express object and routes (in order)
 

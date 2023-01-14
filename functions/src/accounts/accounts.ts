@@ -39,11 +39,12 @@ app.patch("/:uid", async (req, res)=>{
 });
 
 export const saveNewUserToDb = functions.auth.user().onCreate(async (user) => {
-  functions.logger.info("New user created!", user);
   return admin.firestore().collection("accounts")
-      .doc(user.uid)
-      .create({name: user.displayName || "Anonymous", email: user.email,
-        prn: null, codingProfiles: [], resumeLink: null});
+    .doc(user.uid)
+    .create({
+      name: user.displayName || "Anonymous",
+      email: user.email
+    });
 });
 
 export const accountsHandler = app;
