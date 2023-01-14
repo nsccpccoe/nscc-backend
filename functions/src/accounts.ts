@@ -1,13 +1,11 @@
 import * as functions from "firebase-functions";
 import * as express from "express";
 import * as admin from "firebase-admin";
-import * as acc from "./accounts";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 
-admin.initializeApp();
 
 app.get("/:uid", async (req, res)=>{
   const uid = req.params.uid;
