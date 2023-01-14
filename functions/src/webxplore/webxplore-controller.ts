@@ -159,7 +159,11 @@ export const getSubmissionById = async (req: express.Request, res: express.Respo
     });
 
   } catch (e) {
-    res.status(500).json({ error: (<Error>e).message });
+    res.status(500).json({
+      isError: true,
+      errorCode: (<Error>e).name,
+      errorMessage: (<Error>e).message
+    });
   }
 }
 
@@ -169,7 +173,7 @@ export const getAllSubmissions = async (req: express.Request, res: express.Respo
     const submissionSnapshot = await db.collection(submissionsCollection).get()
 
     if (submissionSnapshot.empty) {
-      res.status(404).send({
+      res.status(200).send({
         isError: false,
         data: []
       });

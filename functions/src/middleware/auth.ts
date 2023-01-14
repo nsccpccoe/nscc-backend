@@ -1,5 +1,5 @@
 import { getAuth, UserRecord} from 'firebase-admin/auth'
-import { Request, Response, NextFunction } from "express"
+import { Request, Response, NextFunction } from 'express'
 
 export interface AuthenticatedRequest extends Request {
   user: UserRecord
@@ -8,7 +8,9 @@ export interface AuthenticatedRequest extends Request {
 export default async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.headers.authorization?.split(' ')[1] || ''
+    console.log({token})
     const decodedToken = await getAuth().verifyIdToken(token);
+    console.log({decodedToken})
     const user = await getAuth().getUser(decodedToken.uid);
     (<AuthenticatedRequest>req)['user'] = user
     return next()
