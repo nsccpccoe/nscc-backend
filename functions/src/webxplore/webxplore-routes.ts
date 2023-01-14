@@ -1,5 +1,5 @@
 import express = require("express");
-import { submit, getPage, getAll, like, update } from "../controller/apis";
+import { submit, getPage, getAll, like, update } from "./webxplore-controller";
 
 const router = express.Router();
 
