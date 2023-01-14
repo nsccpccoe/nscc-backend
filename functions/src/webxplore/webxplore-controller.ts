@@ -2,6 +2,7 @@ import * as express from 'express';
 import * as admin from 'firebase-admin';
 import puppeteer = require("puppeteer");
 import { AuthenticatedRequest } from "../middleware/auth";
+import { CustomError, CustomResult } from '../interfaces/api'
 
 admin.initializeApp();
 
@@ -22,25 +23,9 @@ interface Submission {
   likes: number
 }
 
-interface CustomError {
-  isError: true
-  errorCode: string
-  errorMessage: string
-}
-
-interface SubmissionResult {
-  isError: false
-  data: Submission
-}
-
-interface SubmissionsResult {
-  isError: false
-  data: Submission[]
-}
-
-interface UpvoteResult {
-  isError: false
-}
+type SubmissionResult = CustomResult<Submission>
+type SubmissionsResult = CustomResult<Submission[]>
+type UpvoteResult = CustomResult<undefined>
 
 const screenshot = async (url: string): Promise<{screenshot: string | Buffer, title: string, description: string}> => {
   const browser = await puppeteer.launch({
@@ -238,7 +223,8 @@ export const upvote = async (req: express.Request, res: express.Response<UpvoteR
       });
 
     res.status(200).json({
-      isError: false
+      isError: false,
+      data: undefined
     });
 
   } catch (e) {

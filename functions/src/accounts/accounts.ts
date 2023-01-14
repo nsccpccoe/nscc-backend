@@ -1,50 +1,97 @@
-import * as functions from "firebase-functions";
 import * as express from "express";
-import * as admin from "firebase-admin";
+import { firestore } from "firebase-admin";
+import { CustomError, CustomResult } from '../interfaces/api'
+import authMiddleware, { AuthenticatedRequest } from "../middleware/auth";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 
-app.get("/:uid", async (req, res)=>{
-  const uid = req.params.uid;
+interface UserStore {
+  displayName: string
+  email: string
+  phoneNumber?: string
+  codechef?: string
+  codeforces?: string
+  hackerrank?: string
+  leetcode?: string
+}
+
+
+type UserResult = CustomResult<UserStore & { uid: string}>
+
+app.get("/:uid", async (req, res: express.Response<UserResult | CustomError>) => {
+  const uid = req.params.uid as string;
   try {
-    const user = await admin.firestore()
+    const userSnapshot = await firestore()
         .collection("accounts")
         .doc(uid)
         .get();
 
-    if (!user.exists) {
-      return res.json({success: false, message: "User does not exist"});
+    if (!userSnapshot.exists) {
+      res.status(404).json({
+        isError: true,
+        errorCode: "NOT_FOUND",
+        errorMessage: "User does not exist",
+      });
+      return;
     }
-    return res.json(user.data());
-  } catch (err) {
-    console.error(err);
-    return res.json({success: false, message: err});
+
+    const user = userSnapshot.data() as UserStore;
+
+    res.status(200).json({
+      isError: false,
+      data: {
+        uid: userSnapshot.id,
+        displayName: user.displayName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        codechef: user.codechef,
+        codeforces: user.codeforces,
+        hackerrank: user.hackerrank,
+      }
+    });
+
+
+  } catch (e) {
+    res.status(500).json({
+      isError: true,
+      errorCode: (<Error>e).name,
+      errorMessage: (<Error>e).message
+    });
   }
 });
 
-app.patch("/:uid", async (req, res)=>{
-  const uid = req.params.uid;
+app.post("/update", authMiddleware, async (req, res: express.Response<UserResult | CustomError>) => {
+  
+  const user = (<AuthenticatedRequest>req).user
+  const { displayName, phoneNumber, codechef, codeforces, hackerrank, leetcode} = req.body
+
+  const updatedDoc: Partial<UserStore> = {
+    displayName,
+    phoneNumber,
+    codechef,
+    codeforces,
+    hackerrank,
+    leetcode
+  }
 
   try {
-    await admin.firestore().collection("accounts")
-        .doc(uid)
-        .update(req.body);
+    await firestore().collection("accounts")
+        .doc(user.uid)
+        .update(<{ [x: string]: any; }>updatedDoc);
 
-    res.json({success: true, message: "Account updated"});
-  } catch (err) {
-    res.json({success: false, message: err});
-  }
-});
-
-export const saveNewUserToDb = functions.auth.user().onCreate(async (user) => {
-  return admin.firestore().collection("accounts")
-    .doc(user.uid)
-    .create({
-      name: user.displayName || "Anonymous",
-      email: user.email
+    res.status(201).json({
+      isError: false,
+      data: req.body
     });
+  } catch (e) {
+    res.status(500).json({
+      isError: true,
+      errorCode: (<Error>e).name,
+      errorMessage: (<Error>e).message
+    });
+  }
 });
 
 export const accountsHandler = app;
