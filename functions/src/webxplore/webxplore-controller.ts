@@ -1,168 +1,247 @@
-import express = require("express");
-import admin = require("firebase-admin");
+import * as express from 'express';
+import * as admin from 'firebase-admin';
 import puppeteer = require("puppeteer");
+import { AuthenticatedRequest } from "../middleware/auth";
 
 admin.initializeApp();
 
-var bucket = admin.storage().bucket("nsccpccoe.appspot.com");
-const collectionPath = "webxplore/2023";
+const bucket = admin.storage().bucket("nsccpccoe-webxplore-hackathon");
+const db = admin.firestore().collection('events').doc('webxplore');
+const submissionsCollection = "submissions";
+const likesCollection = "likes";
 
-export const submit = async (req: express.Request, res: express.Response) => {
+interface Submission {
+  id: string
+  screenshot: string
+  title: string
+  link: string
+  createdAt: number
+  updatedAt: number
+  createdBy: string
+  description: string
+  likes: number
+}
+
+interface CustomError {
+  isError: true
+  errorCode: string
+  errorMessage: string
+}
+
+interface SubmissionResult {
+  isError: false
+  data: Submission
+}
+
+interface SubmissionsResult {
+  isError: false
+  data: Submission[]
+}
+
+interface UpvoteResult {
+  isError: false
+}
+
+const screenshot = async (url: string): Promise<{screenshot: string | Buffer, title: string, description: string}> => {
+  const browser = await puppeteer.launch({
+    defaultViewport: {
+      width: 640,
+      height: 480,
+    },
+  });
+
+  const page = await browser.newPage();
+  await page.goto(url);
+  await page.waitForNavigation();
+  const screenshot = await page.screenshot({
+    type: "webp",
+    quality: 100,
+  });
+  const title = await page.title();
+  const description = '';
+  await browser.close();
+  return {screenshot, title, description}
+}
+
+export const submit = async (req: express.Request, res: express.Response<SubmissionResult | CustomError>) => {
   try {
-    const body = req.body;
-    puppeteer
-      .launch({
-        defaultViewport: {
-          width: 640,
-          height: 480,
-        },
+    const { url } = req.body;
+    const user = (<AuthenticatedRequest>req).user
+
+    if(typeof url !== 'string') {
+      res.status(400).json({
+        isError: true,
+        errorCode: 'INVALID_URL',
+        errorMessage: 'Please Enter valid Website URL'
       })
-      .then(async (browser) => {
-        const page = await browser.newPage();
-        await page.goto(body.url);
-        const screenshot = await page.screenshot({
-          type: "jpeg",
-          quality: 100,
-        });
-        await bucket.file(`/webxplore/${body.id}.jpeg`).save(screenshot);
-        const file = await bucket
-          .file(`/webxplore/${body.id}.jpeg`)
-          .getMetadata();
-        const url: string = file.shift().mediaLink;
-        const title = await page.title();
-        const time = admin.firestore.FieldValue.serverTimestamp();
-        await admin
-          .firestore()
-          .collection(collectionPath + "/submissions")
-          .doc(body["id"])
-          .create({
-            title: title,
-            link: body.url,
-            screenshot: url,
-            timeStamp: time,
-          });
-        await browser.close();
-      });
-    res.status(201).json({});
-  } catch (e) {
-    res.status(409).json({ message: (<Error>e).message });
-  }
-};
-
-export const update = async (req: express.Request, res: express.Response) => {
-  try {
-    const body = req.body;
-    puppeteer
-      .launch({
-        defaultViewport: {
-          width: 640,
-          height: 480,
-        },
-      })
-      .then(async (browser) => {
-        const page = await browser.newPage();
-        await page.goto(body.url);
-        await page.waitForNavigation();
-        const screenshot = await page.screenshot({
-          type: "jpeg",
-          quality: 100,
-        });
-        await bucket.file(`/webxplore/${body.id}.jpeg`).save(screenshot);
-        const file = await bucket
-          .file(`/webxplore/${body.id}.jpeg`)
-          .getMetadata();
-        const url: string = file.shift().mediaLink;
-        const title = await page.title();
-        const time = admin.firestore.FieldValue.serverTimestamp();
-        await admin
-          .firestore()
-          .collection(collectionPath + "/submissions")
-          .doc(body["id"])
-          .update({
-            title: title,
-            link: body.url,
-            screenshot: url,
-            timeStamp: time,
-          });
-        await browser.close();
-      });
-    res.status(201).json({});
-  } catch (e) {
-    res.status(409).json({ message: (<Error>e).message });
-  }
-};
-
-export const getPage = async (req: express.Request, res: express.Response) => {
-  try {
-    const _id: any = req.query.id;
-    const response = await admin
-      .firestore()
-      .collection(collectionPath + "/submissions")
-      .doc(_id)
-      .get();
-    const likes = await admin
-      .firestore()
-      .collection(collectionPath + "/likes")
-      .where("postID", "==", _id)
-      .get();
-    const likes_id: Array<string> = [];
-    likes.docs.map((doc) => {
-      likes_id.push(doc.data().userID);
-    });
-    if (!response.exists) {
-      res.status(404).send("Document not Found");
-    } else {
-      const page = {
-        _id: response.id,
-        title: response.data()?.title,
-        link: response.data()?.url,
-        likeCount: likes.size,
-        likedBy: likes_id,
-        screenshot: response.data()?.screenshot,
-        timestamp: response.data()?.timeStamp,
-      };
-
-      res.status(200).json(page);
+      return;
     }
-  } catch (e) {
-    res.status(409).json({ message: (<Error>e).message });
-  }
-};
 
-export const getAll = async (req: express.Request, res: express.Response) => {
-  try {
-    const response = await admin
-      .firestore()
-      .collection(collectionPath + "/submissions")
-      .get();
-    const docs_list: Array<object> = [];
-    response.docs.map(async (doc) => {
-      docs_list.push({
-        _id: doc.id,
-        title: doc.data().title,
-        link: doc.data().url,
-        screenshot: doc.data().screenshot,
-        timestamp: doc.data().timeStamp,
+    // create document with id = uid
+    const document = db.collection(submissionsCollection).doc(user.uid)
+    const filePath = `submissions/${document.id}.webp`
+    const submission = await screenshot(url);
+    await bucket.file(filePath).save(submission.screenshot);
+
+    const file = await bucket.file(filePath).getMetadata();
+    const screenshotURL: string = file.shift().mediaLink;
+
+    const result = await document
+      .create({
+        title: submission.title,
+        link: url,
+        screenshot: screenshotURL,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdBy: user.uid,
+        description: submission.description
       });
-    });
-    res.status(200).json(docs_list);
-  } catch (e) {
-    res.status(409).json({ message: (<Error>e).message });
-  }
-};
 
-export const like = async (req: express.Request, res: express.Response) => {
-  try {
-    const doc_id = req.body.doc_id;
-    const uid = req.body.uid;
-    const time = admin.firestore.FieldValue.serverTimestamp();
-    const response = await admin
-      .firestore()
-      .collection(collectionPath + "/likes")
-      .doc(`${doc_id}#${uid}`)
-      .create({ postID: doc_id, userID: uid, timestamp: time });
-    res.status(200).json(response);
+    res.status(201).json({
+      isError: false,
+      data: {
+        id: document.id,
+        title: submission.title,
+        link: url,
+        screenshot: screenshotURL,
+        createdAt: result.writeTime.nanoseconds,
+        updatedAt: result.writeTime.nanoseconds,
+        createdBy: user.uid,
+        description: submission.description,
+        likes: 0
+      }
+    });
+
   } catch (e) {
-    res.status(409).json({ message: (<Error>e).message });
+    res.status(500).json({
+      isError: true,
+      errorCode: (<Error>e).name,
+      errorMessage: (<Error>e).message 
+    });
   }
-};
+}
+
+export const getSubmissionById = async (req: express.Request, res: express.Response<SubmissionResult | CustomError>) => {
+  try {
+    const _id: string = req.params.id;
+    const submissionSnapshot = await db.collection(submissionsCollection).doc(_id).get()
+
+    if (!submissionSnapshot.exists) {
+      res.status(404).send({
+        isError: true,
+        errorCode: "NOT_FOUND",
+        errorMessage: 'Submission Not Found or Has been deleted!',
+      })
+      return
+    }
+
+    const likeSnapshot = await db.collection(likesCollection)
+      .where('submission_id', '==', _id)
+      .count()
+      .get()
+
+    const submission = submissionSnapshot.data() as Submission;
+    const likes = likeSnapshot.data().count;
+
+    res.status(201).json({
+      isError: false,
+      data: {
+        id: submissionSnapshot.id,
+        title: submission.title,
+        link: submission.link,
+        screenshot: submission.screenshot,
+        createdAt: submission.createdAt,
+        updatedAt: submission.updatedAt,
+        createdBy: submission.createdBy,
+        description: submission.description,
+        likes,
+      }
+    });
+
+  } catch (e) {
+    res.status(500).json({ error: (<Error>e).message });
+  }
+}
+
+export const getAllSubmissions = async (req: express.Request, res: express.Response<SubmissionsResult | CustomError>) => {
+  
+  try {
+    const submissionSnapshot = await db.collection(submissionsCollection).get()
+
+    if (submissionSnapshot.empty) {
+      res.status(404).send({
+        isError: false,
+        data: []
+      });
+      return;
+    }
+
+    const submissionsPromise = submissionSnapshot.docs.map(async (doc) => {
+      const submission = doc.data() as Submission
+
+      const likeSnapshot = await db.collection(likesCollection)
+        .where('submission_id', '==', doc.id)
+        .count()
+        .get()
+
+      return {
+        id: doc.id,
+        title: submission.title,
+        link: submission.link,
+        screenshot: submission.screenshot,
+        createdAt: submission.createdAt,
+        updatedAt: submission.updatedAt,
+        createdBy: submission.createdBy,
+        description: submission.description,
+        likes: likeSnapshot.data().count,
+      }
+    })
+
+    const submissions = (await Promise.allSettled(submissionsPromise)).map(result => {
+      if(result.status == 'fulfilled') {
+        return result.value
+      }
+      else {
+        return false
+      }
+    }).filter(Boolean) as Submission[]
+
+    res.status(201).json({
+      isError: false,
+      data: submissions
+    });
+
+  } catch (e) {
+    res.status(500).json({
+      isError: true,
+      errorCode: (<Error>e).name,
+      errorMessage: (<Error>e).message
+    });
+  }
+}
+
+export const upvote = async (req: express.Request, res: express.Response<UpvoteResult | CustomError>) => {
+  try {
+    const { submission_id } = req.body;
+    const user = (<AuthenticatedRequest>req).user
+
+    await db.collection(likesCollection)
+      .doc(`${submission_id}#${user.uid}`)
+      .create({
+        submission_id: submission_id,
+        uid: user.uid,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+      });
+
+    res.status(200).json({
+      isError: false
+    });
+
+  } catch (e) {
+    res.status(409).json({
+      isError: true,
+      errorCode: (<Error>e).name,
+      errorMessage: (<Error>e).message
+    });
+  }
+}

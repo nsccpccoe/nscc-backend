@@ -1,12 +1,13 @@
 import express = require("express");
-import { submit, getPage, getAll, like, update } from "./webxplore-controller";
+import auth from "../middleware/auth";
+import { submit, getSubmissionById, getAllSubmissions, upvote, update } from "./webxplore-controller";
 
 const router = express.Router();
 
-router.post("/submit", submit);
-router.post("/update", update);
-router.get("/page", getPage);
-router.get("/all", getAll);
-router.post("/like", like);
+router.post("/submit", auth, submit);
+// router.post("/update", update);
+router.get("/submissions/:id", getSubmissionById);
+router.get("/submissions", getAllSubmissions);
+router.post("/upvote", auth, upvote);
 
 export default router;
