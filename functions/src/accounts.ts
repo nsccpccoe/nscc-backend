@@ -6,7 +6,6 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
 
-
 app.get("/:uid", async (req, res)=>{
   const uid = req.params.uid;
   try {
