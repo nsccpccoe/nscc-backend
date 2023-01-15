@@ -34,6 +34,9 @@ const screenshot = async (url: string): Promise<{screenshot: string | Buffer, ti
       width: 640,
       height: 480,
     },
+    args: [
+      "--no-sandbox",
+    ],
   });
 
   const page = await browser.newPage();

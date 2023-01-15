@@ -1,8 +1,7 @@
-
-import {auth} from "firebase-functions";
+import {region} from "firebase-functions";
 import {firestore} from "firebase-admin";
 
-export const newUserRegistered = auth.user().onCreate(async (user) => {
+export const newUserRegistered = region("asia-south1").auth.user().onCreate(async (user) => {
   return firestore().collection("accounts")
       .doc(user.uid)
       .create({
