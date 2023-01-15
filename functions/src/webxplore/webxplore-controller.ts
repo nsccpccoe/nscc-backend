@@ -84,7 +84,9 @@ export const submit = async (req: express.Request, res: express.Response<Submiss
     const document = db.collection(submissionsCollection).doc();
     const filePath = `submissions/${document.id}.webp`;
     const submission = await screenshot(url);
-    await bucket.file(filePath).save(submission.screenshot);
+    await bucket.file(filePath).save(submission.screenshot, {
+      public: true,
+    });
 
     const file = await bucket.file(filePath).getMetadata();
     const screenshotURL: string = file.shift().mediaLink;
