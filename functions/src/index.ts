@@ -2,6 +2,7 @@ import * as functions from "firebase-functions";
 import webxploreService from "./webxplore/webxplore-service";
 import * as acc from "./accounts/accounts";
 import {eventsHandler} from "./events/events";
+import {registrationHandler} from "./registration/registration";
 
 // Create an Express object and routes (in order)
 
@@ -22,3 +23,7 @@ export const accounts = functions
 export const events = functions
     .region("asia-south1")
     .https.onRequest(eventsHandler);
+
+export const register = functions
+    .region("asia-south1")
+    .https.onRequest(registrationHandler);

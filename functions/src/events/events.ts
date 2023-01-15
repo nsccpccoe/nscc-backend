@@ -1,10 +1,12 @@
 import * as express from "express";
 import {firestore} from "firebase-admin";
 import {CustomError, CustomResult} from "../interfaces/api";
+import * as cors from "cors";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
+app.use(cors());
 
 interface EventStore {
   displayName: string
