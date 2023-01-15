@@ -34,10 +34,15 @@ const screenshot = async (url: string): Promise<{screenshot: string | Buffer, ti
       height: 480,
     },
   });
-
+  
   const page = await browser.newPage();
-  await page.goto(url);
-  await page.waitForNavigation();
+  console.log(url)
+  await page.goto(url,{            
+    timeout: 0,
+    waitUntil: ["domcontentloaded", "networkidle2"],
+  });
+  
+  //return {screenshot: "hi",title:'hello', description:'bye'}
   const screenshot = await page.screenshot({
     type: "webp",
     quality: 100,
