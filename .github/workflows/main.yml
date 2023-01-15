@@ -1,0 +1,43 @@
+name: build and deploy
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Install Dependencies
+      run: npm ci
+
+    - name: Build
+      run: npm run build
+
+    - name: Test
+      run: npm test
+
+    - name: Lint
+      run: npm run lint
+
+    - name: Code Coverage
+      run: npm run coverage
+      
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Install Firebase CLI
+      run: npm install -g firebase-tools
+
+    - name: Login to Firebase
+      run: firebase login:ci --token ${{ secrets.FIREBASE_TOKEN }}
+
+    - name: Deploy functions
+      run: firebase deploy --only functions --project ${{ secrets.FIREBASE_PROJECT_ID }}
