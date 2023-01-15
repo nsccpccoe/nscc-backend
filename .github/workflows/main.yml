@@ -1,0 +1,42 @@
+name : Firebase Functions deploy
+
+on:
+  push:
+    branches: [ master ]
+    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      
+    - name: Install dependencies
+      run: npm install
+      
+    - name: Test
+      run: npm test
+      
+    - name: Build
+      run: npm run build
+      
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      
+    - name: Install Firebase CLI
+      run: npm install -g firebase-tools
+      
+    - name: Login to Firebase
+      run: firebase login:ci --no-localhost
+      
+    - name: Deploy to Firebase
+      run: firebase deploy --only hosting --except hosting.headers,hosting.rewrites
+      env:
+        FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+ 
