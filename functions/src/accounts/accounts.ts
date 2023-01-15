@@ -1,7 +1,7 @@
 import * as express from "express";
-import { firestore } from "firebase-admin";
-import { CustomError, CustomResult } from '../interfaces/api'
-import authMiddleware, { AuthenticatedRequest } from "../middleware/auth";
+import {firestore} from "firebase-admin";
+import {CustomError, CustomResult} from "../interfaces/api";
+import authMiddleware, {AuthenticatedRequest} from "../middleware/auth";
 
 const app = express();
 app.use(express.json());
@@ -49,23 +49,20 @@ app.get("/:uid", async (req, res: express.Response<UserResult | CustomError>) =>
         codechef: user.codechef,
         codeforces: user.codeforces,
         hackerrank: user.hackerrank,
-      }
+      },
     });
-
-
   } catch (e) {
     res.status(500).json({
       isError: true,
       errorCode: (<Error>e).name,
-      errorMessage: (<Error>e).message
+      errorMessage: (<Error>e).message,
     });
   }
 });
 
 app.post("/update", authMiddleware, async (req, res: express.Response<UserResult | CustomError>) => {
-  
-  const user = (<AuthenticatedRequest>req).user
-  const { displayName, phoneNumber, codechef, codeforces, hackerrank, leetcode} = req.body
+  const user = (<AuthenticatedRequest>req).user;
+  const {displayName, phoneNumber, codechef, codeforces, hackerrank, leetcode} = req.body;
 
   const updatedDoc: Partial<UserStore> = {
     displayName,
@@ -73,23 +70,23 @@ app.post("/update", authMiddleware, async (req, res: express.Response<UserResult
     codechef,
     codeforces,
     hackerrank,
-    leetcode
-  }
+    leetcode,
+  };
 
   try {
     await firestore().collection("accounts")
         .doc(user.uid)
-        .update(<{ [x: string]: any; }>updatedDoc);
+        .update(<{ [x: string]: string; }>updatedDoc);
 
     res.status(201).json({
       isError: false,
-      data: req.body
+      data: req.body,
     });
   } catch (e) {
     res.status(500).json({
       isError: true,
       errorCode: (<Error>e).name,
-      errorMessage: (<Error>e).message
+      errorMessage: (<Error>e).message,
     });
   }
 });
