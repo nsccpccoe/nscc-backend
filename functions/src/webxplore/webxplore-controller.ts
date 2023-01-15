@@ -76,8 +76,8 @@ export const submit = async (req: express.Request, res: express.Response<Submiss
         title: submission.title,
         link: url,
         screenshot: screenshotURL,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
         createdBy: user.uid,
         description: submission.description
       });
@@ -219,7 +219,7 @@ export const upvote = async (req: express.Request, res: express.Response<UpvoteR
       .create({
         submission_id: submission_id,
         uid: user.uid,
-        timestamp: admin.firestore.FieldValue.serverTimestamp()
+        timestamp: Date.now()
       });
 
     res.status(200).json({
