@@ -22,10 +22,11 @@ interface Submission {
   description: string
   likes: number
 }
-
+ 
 type SubmissionResult = CustomResult<Submission>
 type SubmissionsResult = CustomResult<Submission[]>
 type UpvoteResult = CustomResult<undefined>
+type LikedSubmissionsResult = CustomResult<string[]>
 
 const screenshot = async (url: string): Promise<{screenshot: string | Buffer, title: string, description: string}> => {
   const browser = await puppeteer.launch({
@@ -62,13 +63,22 @@ export const submit = async (req: express.Request, res: express.Response<Submiss
       res.status(400).json({
         isError: true,
         errorCode: 'INVALID_URL',
-        errorMessage: 'Please Enter valid Website URL'
+        errorMessage: 'Please Enter valid Website URL.'
       })
       return;
     }
 
     // create document with id = uid
-    const document = db.collection(submissionsCollection).doc(user.uid)
+    const temp = await db.collection(submissionsCollection).where('createdBy', '==', user.uid).get();
+    if(!temp.empty){
+      res.status(406).json({
+        isError: true,
+        errorCode: 'ALREADY_EXISTS',
+        errorMessage: 'Submission Already Exists with Same ID.'
+      })
+      return ;
+    }
+    const document = db.collection(submissionsCollection).doc()
     const filePath = `submissions/${document.id}.webp`
     const submission = await screenshot(url);
     await bucket.file(filePath).save(submission.screenshot);
@@ -77,7 +87,7 @@ export const submit = async (req: express.Request, res: express.Response<Submiss
     const screenshotURL: string = file.shift().mediaLink;
 
     const result = await document
-      .create({
+      .set({
         title: submission.title,
         link: url,
         screenshot: screenshotURL,
@@ -221,7 +231,7 @@ export const upvote = async (req: express.Request, res: express.Response<UpvoteR
 
     await db.collection(likesCollection)
       .doc(`${submission_id}#${user.uid}`)
-      .create({
+      .set({
         submission_id: submission_id,
         uid: user.uid,
         timestamp: Date.now()
@@ -230,6 +240,30 @@ export const upvote = async (req: express.Request, res: express.Response<UpvoteR
     res.status(200).json({
       isError: false,
       data: undefined
+    });
+
+  } catch (e) {
+    res.status(409).json({
+      isError: true,
+      errorCode: (<Error>e).name,
+      errorMessage: (<Error>e).message
+    });
+  }
+}
+
+export const likedByUser = async (req: express.Request, res: express.Response<LikedSubmissionsResult | CustomError>) => {
+  try {
+    const user = (<AuthenticatedRequest>req).user
+
+    const likedSnapshot = await db.collection(likesCollection)
+      .where('uid', '==', user.uid)
+      .get()
+
+      const likedPost: string[] = likedSnapshot.docs.map((doc) => doc.data().submission_id)
+    
+      res.status(200).json({
+      isError: false,
+      data: likedPost
     });
 
   } catch (e) {
