@@ -3,61 +3,101 @@ import {firestore} from "firebase-admin";
 import {CustomError, CustomResult} from "../interfaces/api";
 import * as cors from "cors";
 import auth, {AuthenticatedRequest} from "../middleware/auth";
+import {Field, fields} from "./fields";
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({extended: false}));
-app.use(cors());
+
+const db = firestore();
 
 interface FieldStore {
   eventId: string,
-  fields: {
-    name: string,
-    label: string,
-    value: string | number | null,
-    mutable: boolean
-  }[]
+  fields: (Field & { value: string })[]
 }
 
-
-const labels:{[key: string]: string} = {
-  displayName: "UserName",
-  email: "Email ID",
-  gender: "Gender",
-  collegeName: "College Name",
-  graduationYear: "Graduation Year",
-  hackerrank: "HackerRank Profile",
-  leetcode: "Leetcode Profile",
-  linkedin: "LinkedIn Profile",
-  codechef: "Codechef Profile",
-  phoneNumber: "Phone Number",
-};
-
 type FieldsResult = CustomResult<FieldStore>
-type RegisterResult = CustomResult<{eventId: string, registered: boolean, registeredAt: number}>
+type RegisterResult = CustomResult<{ eventId: string, registered: boolean }>
 
 app.get("/:eventId/fields", auth, async (req: express.Request, res: express.Response<FieldsResult | CustomError>) => {
-  const eventId = req.params.eventId;
-  const user = (<AuthenticatedRequest>req).user;
-
-  const eventRef = await firestore().collection("events").doc(eventId).get();
-  const requiredFields = eventRef.data()?.requiredUserField;
-  const recordRef = await firestore().collection("accounts").doc(user.uid).get();
-  const userInfo = recordRef.data() as {[key :string] : string};
-
-  console.log(requiredFields);
-  const missingFields: FieldStore = {eventId: eventId, fields: []};
-
-  requiredFields?.map((field:string) => {
-    missingFields.fields?.push({
-      name: field,
-      label: labels[field],
-      value: userInfo[field] !== undefined ? userInfo[field] : null,
-      mutable: field === "email"? false:true,
-    });
-  });
-  console.log(missingFields);
   try {
+    const eventId = req.params.eventId;
+    const user = (<AuthenticatedRequest>req).user;
+
+    const eventSnapshot = await db.collection("events").doc(eventId).get();
+    const eventData = eventSnapshot.data();
+
+    if (!eventSnapshot.exists || eventData === undefined) {
+      res.status(500).json({
+        isError: true,
+        errorCode: "NOT_FOUND",
+        errorMessage: "Event Not Found",
+      });
+      return;
+    }
+
+    const requiredFields: string[] = eventData.requiredUserField || [];
+
+    if (requiredFields.length == 0) {
+      res.status(200).json({
+        isError: false,
+        data: {
+          eventId,
+          fields: [],
+        },
+      });
+      return;
+    }
+
+    const recordSnapshot = await db.collection("accounts").doc(user.uid).get();
+    const userInfo = recordSnapshot.data() as { [key: string]: string };
+
+    if (!recordSnapshot.exists || userInfo === undefined) {
+      res.status(404).json({
+        isError: true,
+        errorCode: "USER_NOT_FOUND",
+        errorMessage: "Registered user is not found is Database, Please contact nscc@pccoepune.org",
+      });
+      return;
+    }
+
+    const missingFields: FieldStore = {eventId: eventId, fields: []};
+
+    requiredFields.map((fieldName: string) => {
+      // case when field detail is missing from backend list
+      const field = fields.filter((field) => field.name == fieldName)[0] || {
+        type: "text",
+        name: fieldName,
+        label: fieldName,
+        placeholder: fieldName,
+        value: fieldName in userInfo ? userInfo[fieldName] : "",
+        mutable: true,
+        regex: ".+",
+      };
+
+      if (field.type == "text") {
+        missingFields.fields.push({
+          type: field.type,
+          name: field.name,
+          label: field.label,
+          placeholder: field.placeholder,
+          value: fieldName in userInfo ? userInfo[fieldName] : "",
+          mutable: field.mutable,
+          regex: field.regex,
+        });
+      } else {
+        missingFields.fields.push({
+          type: field.type,
+          name: field.name,
+          label: field.label,
+          value: fieldName in userInfo ? userInfo[fieldName] : "",
+          mutable: field.mutable,
+          options: field.options,
+        });
+      }
+    });
+
     res.status(200).json({
       isError: false,
       data: missingFields,
@@ -72,18 +112,17 @@ app.get("/:eventId/fields", auth, async (req: express.Request, res: express.Resp
 });
 
 app.get("/:eventId/status", auth, async (req: express.Request, res: express.Response<RegisterResult | CustomError>) => {
-  const eventId = req.params.eventId;
-  const user = (<AuthenticatedRequest>req).user;
-
-  const registeredRef = await firestore().collection("events").doc(eventId).collection("registrations").doc(user.uid).get();
-
   try {
+    const eventId = req.params.eventId;
+    const user = (<AuthenticatedRequest>req).user;
+
+    const registeredRef = await db.collection("events").doc(eventId).collection("registrations").doc(user.uid).get();
+
     res.status(200).json({
       isError: false,
       data: {
         eventId: eventId,
         registered: registeredRef.exists,
-        registeredAt: Date.now(),
       },
     });
   } catch (e) {
@@ -96,32 +135,61 @@ app.get("/:eventId/status", auth, async (req: express.Request, res: express.Resp
 });
 
 app.post("/:eventId", auth, async (req: express.Request, res: express.Response<RegisterResult | CustomError>) => {
-  const eventId = req.params.eventId;
-  const user = (<AuthenticatedRequest>req).user;
-  const {gender, collegeName, graduationYear, hackerrank, leetcode, linkedin, phoneNumber} = req.body;
-
-  await firestore().collection("accounts").doc(user.uid).update({
-    gender: gender,
-    collegeName: collegeName,
-    graduationYear: graduationYear,
-    hackerrank: hackerrank,
-    leetcode: leetcode,
-    linkedin: linkedin,
-    phoneNumber: phoneNumber,
-  });
-
-  await firestore().collection("events").doc(eventId).collection("registrations").doc(user.uid).set({
-    eventId: eventId,
-    registered: true,
-    registeredAt: Date.now(),
-  });
   try {
+    const eventId = req.params.eventId;
+    const user = (<AuthenticatedRequest>req).user;
+
+    const eventSnapshot = await db.collection("events").doc(eventId).get();
+    const eventData = eventSnapshot.data();
+
+    if (!eventSnapshot.exists || eventData === undefined) {
+      res.status(500).json({
+        isError: true,
+        errorCode: "NOT_FOUND",
+        errorMessage: "Event Not Found",
+      });
+      return;
+    }
+
+    const requiredFields: string[] = eventData.requiredUserField || [];
+
+    const userData: Record<string, string> = {};
+
+    requiredFields.forEach((fieldName) => {
+      if (fieldName in req.body) {
+        const field = fields.filter((field) => field.name === fieldName)[0];
+        if (field && field.mutable === false) {
+          // ignore immutable fields
+          console.log("Immutable Field: ", field);
+        } else {
+          userData[fieldName] = req.body[fieldName];
+        }
+      } else {
+        res.status(400).json({
+          isError: true,
+          errorCode: "REQUIRED_FIELD_MISSING",
+          errorMessage: `${fieldName} in Required but not passed!`,
+        });
+        return;
+      }
+    });
+
+    if (Object.entries(userData).length > 0) {
+      await db.collection("accounts").doc(user.uid).update(userData);
+    }
+
+    await db.collection("events").doc(eventId).collection("registrations").doc(user.uid).set({
+      eventId: eventId,
+      uid: user.uid,
+      registered: true,
+      registeredAt: new Date(),
+    });
+
     res.status(200).json({
       isError: false,
       data: {
         eventId: eventId,
         registered: true,
-        registeredAt: Date.now(),
       },
     });
   } catch (e) {
