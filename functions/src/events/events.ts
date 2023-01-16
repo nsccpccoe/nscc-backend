@@ -23,11 +23,15 @@ interface EventStore {
     type: "onsite" | "offsite",
     link: string,
   }
+  eventPage: {
+    link: string
+    type: "onsite" | "offsite",
+  }
 }
 
 type EventsResult = CustomResult<(EventStore & { id: string})[]>
 
-app.get("/", async (req, res: express.Response<EventsResult | CustomError>) => {
+app.get("/", async (req: express.Request, res: express.Response<EventsResult | CustomError>) => {
   try {
     const eventsSnapshot = await firestore()
         .collection("events")
@@ -51,6 +55,7 @@ app.get("/", async (req, res: express.Response<EventsResult | CustomError>) => {
         endAt: (<firestore.Timestamp><unknown>eventData.endAt).toDate().getTime(),
         startAt: (<firestore.Timestamp><unknown>eventData.startAt).toDate().getTime(),
         organizers: eventData.organizers,
+        eventPage: eventData.eventPage,
         featured: eventData.featured,
         registration: eventData.registration,
       };
