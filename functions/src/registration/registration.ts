@@ -14,9 +14,11 @@ interface FieldStore {
   fields: {
     name: string,
     label: string,
-    value: string | number | null
+    value: string | number | null,
+    mutable: boolean
   }[]
 }
+
 
 const labels:{[key:string]:any} = {
   displayName: 'UserName',
@@ -32,7 +34,7 @@ const labels:{[key:string]:any} = {
 }
 
 type FieldsResult = CustomResult<FieldStore>
-type RegisterResult = CustomResult<{eventId: string, registered: boolean}>
+type RegisterResult = CustomResult<{eventId: string, registered: boolean, registeredAt: number}>
 
 app.get("/:eventId/fields", auth, async (req: express.Request, res: express.Response<FieldsResult | CustomError>) => {
   const eventId = req.params.eventId;
@@ -50,17 +52,15 @@ app.get("/:eventId/fields", auth, async (req: express.Request, res: express.Resp
     missingFields.fields?.push({
       name: field,
       label: labels[field],
-      value: userInfo[field] !== undefined ? userInfo[field] : null
+      value: userInfo[field] !== undefined ? userInfo[field] : null,
+      mutable: field === 'email'? false:true
     })
   })
   console.log(missingFields)
   try {
     res.status(200).json({
       isError: false,
-      data: {
-        eventId: eventId,
-        fields: missingFields.fields!
-      },
+      data: missingFields,
     });
   } catch (e) {
     res.status(500).json({
@@ -73,12 +73,17 @@ app.get("/:eventId/fields", auth, async (req: express.Request, res: express.Resp
 
 app.get("/:eventId/status", auth, async (req: express.Request, res: express.Response<RegisterResult | CustomError>) => {
   const eventId = req.params.eventId;
+  const user = (<AuthenticatedRequest>req).user;
+
+  const registeredRef = await firestore().collection('events').doc(eventId).collection('registrations').doc(user.uid).get()
+
   try {
     res.status(200).json({
       isError: false,
       data: {
         eventId: eventId,
-        registered: true,
+        registered: registeredRef.exists,
+        registeredAt: Date.now()
       },
     });
   } catch (e) {
@@ -92,12 +97,31 @@ app.get("/:eventId/status", auth, async (req: express.Request, res: express.Resp
 
 app.post("/:eventId", auth, async (req: express.Request, res: express.Response<RegisterResult | CustomError>) => {
   const eventId = req.params.eventId;
+  const user = (<AuthenticatedRequest>req).user;
+  const {gender,collegeName,graduationYear,hackerrank,leetcode,linkedin,phoneNumber} = req.body
+
+  await firestore().collection('accounts').doc(user.uid).update({
+    gender:gender,
+    collegeName:collegeName,
+    graduationYear:graduationYear,
+    hackerrank:hackerrank,
+    leetcode:leetcode,
+    linkedin:linkedin,
+    phoneNumber:phoneNumber
+  })
+
+  await firestore().collection('events').doc(eventId).collection('registrations').doc(user.uid).set({
+    eventId: eventId,
+    registered: true,
+    registeredAt:Date.now()
+  })
   try {
     res.status(200).json({
       isError: false,
       data: {
         eventId: eventId,
         registered: true,
+        registeredAt:Date.now()
       },
     });
   } catch (e) {
