@@ -20,18 +20,18 @@ interface FieldStore {
 }
 
 
-const labels:{[key:string]:any} = {
-  displayName: 'UserName',
-  email: 'Email ID',
-  gender: 'Gender',
-  collegeName: 'College Name',
-  graduationYear: 'Graduation Year',
-  hackerrank: 'HackerRank Profile',
-  leetcode: 'Leetcode Profile',
-  linkedin: 'LinkedIn Profile',
-  codechef: 'Codechef Profile',
-  phoneNumber: 'Phone Number',
-}
+const labels:{[key: string]: string} = {
+  displayName: "UserName",
+  email: "Email ID",
+  gender: "Gender",
+  collegeName: "College Name",
+  graduationYear: "Graduation Year",
+  hackerrank: "HackerRank Profile",
+  leetcode: "Leetcode Profile",
+  linkedin: "LinkedIn Profile",
+  codechef: "Codechef Profile",
+  phoneNumber: "Phone Number",
+};
 
 type FieldsResult = CustomResult<FieldStore>
 type RegisterResult = CustomResult<{eventId: string, registered: boolean, registeredAt: number}>
@@ -40,23 +40,23 @@ app.get("/:eventId/fields", auth, async (req: express.Request, res: express.Resp
   const eventId = req.params.eventId;
   const user = (<AuthenticatedRequest>req).user;
 
-  const eventRef = await firestore().collection('events').doc(eventId).get()
-  const requiredFields = eventRef.data()?.requiredUserField
-  const recordRef = await firestore().collection('accounts').doc(user.uid).get()
-  const userInfo = recordRef.data() as {[key :string] : any}
-  
-  console.log(requiredFields)
-  let missingFields: FieldStore = {eventId:eventId, fields: []};
+  const eventRef = await firestore().collection("events").doc(eventId).get();
+  const requiredFields = eventRef.data()?.requiredUserField;
+  const recordRef = await firestore().collection("accounts").doc(user.uid).get();
+  const userInfo = recordRef.data() as {[key :string] : string};
+
+  console.log(requiredFields);
+  const missingFields: FieldStore = {eventId: eventId, fields: []};
 
   requiredFields?.map((field:string) => {
     missingFields.fields?.push({
       name: field,
       label: labels[field],
       value: userInfo[field] !== undefined ? userInfo[field] : null,
-      mutable: field === 'email'? false:true
-    })
-  })
-  console.log(missingFields)
+      mutable: field === "email"? false:true,
+    });
+  });
+  console.log(missingFields);
   try {
     res.status(200).json({
       isError: false,
@@ -75,7 +75,7 @@ app.get("/:eventId/status", auth, async (req: express.Request, res: express.Resp
   const eventId = req.params.eventId;
   const user = (<AuthenticatedRequest>req).user;
 
-  const registeredRef = await firestore().collection('events').doc(eventId).collection('registrations').doc(user.uid).get()
+  const registeredRef = await firestore().collection("events").doc(eventId).collection("registrations").doc(user.uid).get();
 
   try {
     res.status(200).json({
@@ -83,7 +83,7 @@ app.get("/:eventId/status", auth, async (req: express.Request, res: express.Resp
       data: {
         eventId: eventId,
         registered: registeredRef.exists,
-        registeredAt: Date.now()
+        registeredAt: Date.now(),
       },
     });
   } catch (e) {
@@ -98,30 +98,30 @@ app.get("/:eventId/status", auth, async (req: express.Request, res: express.Resp
 app.post("/:eventId", auth, async (req: express.Request, res: express.Response<RegisterResult | CustomError>) => {
   const eventId = req.params.eventId;
   const user = (<AuthenticatedRequest>req).user;
-  const {gender,collegeName,graduationYear,hackerrank,leetcode,linkedin,phoneNumber} = req.body
+  const {gender, collegeName, graduationYear, hackerrank, leetcode, linkedin, phoneNumber} = req.body;
 
-  await firestore().collection('accounts').doc(user.uid).update({
-    gender:gender,
-    collegeName:collegeName,
-    graduationYear:graduationYear,
-    hackerrank:hackerrank,
-    leetcode:leetcode,
-    linkedin:linkedin,
-    phoneNumber:phoneNumber
-  })
+  await firestore().collection("accounts").doc(user.uid).update({
+    gender: gender,
+    collegeName: collegeName,
+    graduationYear: graduationYear,
+    hackerrank: hackerrank,
+    leetcode: leetcode,
+    linkedin: linkedin,
+    phoneNumber: phoneNumber,
+  });
 
-  await firestore().collection('events').doc(eventId).collection('registrations').doc(user.uid).set({
+  await firestore().collection("events").doc(eventId).collection("registrations").doc(user.uid).set({
     eventId: eventId,
     registered: true,
-    registeredAt:Date.now()
-  })
+    registeredAt: Date.now(),
+  });
   try {
     res.status(200).json({
       isError: false,
       data: {
         eventId: eventId,
         registered: true,
-        registeredAt:Date.now()
+        registeredAt: Date.now(),
       },
     });
   } catch (e) {
