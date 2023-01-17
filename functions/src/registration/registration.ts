@@ -178,12 +178,12 @@ app.post("/:eventId", auth, async (req: express.Request, res: express.Response<R
       await db.collection("accounts").doc(user.uid).update(userData);
     }
 
-    await db.collection("events").doc(eventId).collection("registrations").doc(user.uid).update({
+    await db.collection("events").doc(eventId).collection("registrations").doc(user.uid).set({
       eventId: eventId,
       uid: user.uid,
       modifiedAt: new Date(),
       ...userData,
-    });
+    }, {merge: true});
 
     res.status(200).json({
       isError: false,
