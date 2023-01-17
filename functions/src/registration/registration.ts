@@ -54,11 +54,11 @@ app.get("/:eventId/fields", auth, async (req: express.Request, res: express.Resp
     const userInfo = recordSnapshot.data() || {
       email: user.email,
       displayName: user.displayName,
-      photoURL: user.photoURL
+      photoURL: user.photoURL,
     } as { [key: string]: string };
 
     if (!recordSnapshot.exists) {
-      await db.collection("accounts").doc(user.uid).set(userInfo, { merge: true })
+      await db.collection("accounts").doc(user.uid).set(userInfo, {merge: true});
     }
 
     const missingFields: FieldStore = {eventId: eventId, fields: []};
