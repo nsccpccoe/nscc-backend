@@ -100,7 +100,7 @@ export const submit = async (req: express.Request, res: express.Response<Submiss
           updatedAt: Date.now(),
           createdBy: user.uid,
           description: submission.description,
-        });
+        }, {merge: true});
 
     res.status(201).json({
       isError: false,
@@ -235,7 +235,7 @@ export const upvote = async (req: express.Request, res: express.Response<UpvoteR
           submissionID: submissionID,
           uid: user.uid,
           timestamp: Date.now(),
-        });
+        }, {merge: true});
 
     res.status(200).json({
       isError: false,
