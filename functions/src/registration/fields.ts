@@ -38,7 +38,7 @@ export const fields: Field[] = [
     name: "gender",
     label: "Gender",
     mutable: true,
-    options: ["Male", "Female"],
+    options: ["Female", "Male", "Other"],
   },
   {
     type: "text",

@@ -30,6 +30,7 @@ interface EventStore {
 }
 
 type EventsResult = CustomResult<(EventStore & { id: string})[]>
+type EventResult = CustomResult<EventStore & { id: string}>
 
 app.get("/", async (req: express.Request, res: express.Response<EventsResult | CustomError>) => {
   try {
@@ -73,5 +74,50 @@ app.get("/", async (req: express.Request, res: express.Response<EventsResult | C
     });
   }
 });
+
+
+app.get("/:eventId", async (req: express.Request, res: express.Response<EventResult | CustomError>) => {
+  try {
+    const eventId = req.params.eventId;
+
+    const eventSnapshot = await firestore()
+        .collection("events")
+        .doc(eventId)
+        .get();
+
+    if (!eventSnapshot.exists) {
+      res.status(404).json({
+        isError: true,
+        errorCode: "EVENT_NOT_FOUND",
+        errorMessage: "Event doesn't exist or has been removed!!",
+      });
+      return;
+    }
+    const eventData = eventSnapshot.data() as EventStore;
+
+    res.status(200).json({
+      isError: false,
+      data: {
+        id: eventSnapshot.id,
+        displayName: eventData.displayName,
+        description: eventData.description,
+        subtitle: eventData.subtitle,
+        endAt: (<firestore.Timestamp><unknown>eventData.endAt).toDate().getTime(),
+        startAt: (<firestore.Timestamp><unknown>eventData.startAt).toDate().getTime(),
+        organizers: eventData.organizers,
+        eventPage: eventData.eventPage,
+        featured: eventData.featured,
+        registration: eventData.registration,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({
+      isError: true,
+      errorCode: (<Error>e).name,
+      errorMessage: (<Error>e).message,
+    });
+  }
+});
+
 
 export const eventsHandler = app;
