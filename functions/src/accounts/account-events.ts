@@ -4,8 +4,8 @@ import {firestore} from "firebase-admin";
 export const newUserRegistered = region("asia-south1").auth.user().onCreate(async (user) => {
   return firestore().collection("accounts")
       .doc(user.uid)
-      .create({
+      .set({
         displayName: user.displayName,
         email: user.email,
-      });
+      }, {merge: true});
 });

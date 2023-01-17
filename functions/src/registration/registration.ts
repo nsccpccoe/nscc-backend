@@ -51,15 +51,14 @@ app.get("/:eventId/fields", auth, async (req: express.Request, res: express.Resp
     }
 
     const recordSnapshot = await db.collection("accounts").doc(user.uid).get();
-    const userInfo = recordSnapshot.data() as { [key: string]: string };
+    const userInfo = recordSnapshot.data() || {
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL
+    } as { [key: string]: string };
 
-    if (!recordSnapshot.exists || userInfo === undefined) {
-      res.status(404).json({
-        isError: true,
-        errorCode: "USER_NOT_FOUND",
-        errorMessage: "Registered user is not found is Database, Please contact nscc@pccoepune.org",
-      });
-      return;
+    if (!recordSnapshot.exists) {
+      await db.collection("accounts").doc(user.uid).set(userInfo, { merge: true })
     }
 
     const missingFields: FieldStore = {eventId: eventId, fields: []};
