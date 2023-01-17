@@ -178,11 +178,11 @@ app.post("/:eventId", auth, async (req: express.Request, res: express.Response<R
       await db.collection("accounts").doc(user.uid).update(userData);
     }
 
-    await db.collection("events").doc(eventId).collection("registrations").doc(user.uid).set({
+    await db.collection("events").doc(eventId).collection("registrations").doc(user.uid).update({
       eventId: eventId,
       uid: user.uid,
-      registered: true,
-      registeredAt: new Date(),
+      modifiedAt: new Date(),
+      ...userData,
     });
 
     res.status(200).json({

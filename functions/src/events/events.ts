@@ -27,6 +27,10 @@ interface EventStore {
     link: string
     type: "onsite" | "offsite",
   }
+  community: {
+    displayText: string
+    link: string
+  }
 }
 
 type EventsResult = CustomResult<(EventStore & { id: string})[]>
@@ -59,6 +63,7 @@ app.get("/", async (req: express.Request, res: express.Response<EventsResult | C
         eventPage: eventData.eventPage,
         featured: eventData.featured,
         registration: eventData.registration,
+        community: eventData.community,
       };
     });
 
@@ -108,6 +113,7 @@ app.get("/:eventId", async (req: express.Request, res: express.Response<EventRes
         eventPage: eventData.eventPage,
         featured: eventData.featured,
         registration: eventData.registration,
+        community: eventData.community,
       },
     });
   } catch (e) {

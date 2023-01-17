@@ -5,7 +5,7 @@ export const newUserRegistered = region("asia-south1").auth.user().onCreate(asyn
   return firestore().collection("accounts")
       .doc(user.uid)
       .create({
-        displayName: user.displayName || "Anonymous",
+        displayName: user.displayName,
         email: user.email,
       });
 });
