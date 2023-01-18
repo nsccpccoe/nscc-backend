@@ -174,12 +174,14 @@ app.post("/:eventId", auth, async (req: express.Request, res: express.Response<R
     });
 
     if (Object.entries(userData).length > 0) {
-      await db.collection("accounts").doc(user.uid).update(userData);
+      await db.collection("accounts").doc(user.uid).set(userData, {merge: true});
     }
 
     await db.collection("events").doc(eventId).collection("registrations").doc(user.uid).set({
       eventId: eventId,
       uid: user.uid,
+      email: user.email,
+      emailVerified: user.emailVerified,
       modifiedAt: new Date(),
       ...userData,
     }, {merge: true});
