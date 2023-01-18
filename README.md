@@ -26,3 +26,7 @@ Build Watch Cloud Functions
 cd functions
 npm run build:watch
 ```
+## Contributors 
+<a href="https://github.com/nsccpccoe/nscc-backend/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=nsccpccoe/nscc-backend" />
+</a>
