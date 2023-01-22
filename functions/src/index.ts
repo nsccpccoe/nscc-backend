@@ -11,7 +11,7 @@ import {registrationHandler} from "./registration/registration";
 export const webxplore = functions
     .region("asia-south1")
     .runWith({
-      memory: "1GB",
+      memory: "2GB",
     })
     .https.onRequest(webxploreService);
 

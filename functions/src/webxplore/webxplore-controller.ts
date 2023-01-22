@@ -31,8 +31,8 @@ type LikedSubmissionsResult = CustomResult<string[]>
 const screenshot = async (url: string): Promise<{screenshot: string | Buffer, title: string, description: string}> => {
   const browser = await puppeteer.launch({
     defaultViewport: {
-      width: 640,
-      height: 480,
+      width: 1512,
+      height: 982,
     },
     args: [
       "--no-sandbox",
@@ -72,16 +72,18 @@ export const submit = async (req: express.Request, res: express.Response<Submiss
     }
 
     // create document with id = uid
-    const temp = await db.collection(submissionsCollection).where("createdBy", "==", user.uid).get();
-    if (!temp.empty) {
+    // const temp = await db.collection(submissionsCollection).where("createdBy", "==", user.uid).get();
+    const temp = await db.collection(submissionsCollection).doc(user.uid).get();
+    if (temp.exists) {
       res.status(406).json({
         isError: true,
-        errorCode: "ALREADY_EXISTS",
-        errorMessage: "Submission Already Exists with Same ID.",
+        errorCode: "SUBMISSION_ALREADY_EXISTS",
+        errorMessage: "Submission Already Done.",
       });
       return;
     }
-    const document = db.collection(submissionsCollection).doc();
+
+    const document = db.collection(submissionsCollection).doc(user.uid);
     const filePath = `submissions/${document.id}.webp`;
     const submission = await screenshot(url);
     await bucket.file(filePath).save(submission.screenshot, {
@@ -111,7 +113,7 @@ export const submit = async (req: express.Request, res: express.Response<Submiss
         screenshot: screenshotURL,
         createdAt: result.writeTime.toDate().getTime(),
         updatedAt: result.writeTime.toDate().getTime(),
-        createdBy: user.uid,
+        createdBy: user.displayName || "Anonymous",
         description: submission.description,
         likes: 0,
       },
@@ -133,7 +135,7 @@ export const getSubmissionById = async (req: express.Request, res: express.Respo
     if (!submissionSnapshot.exists) {
       res.status(404).send({
         isError: true,
-        errorCode: "NOT_FOUND",
+        errorCode: "SUBMISSION_NOT_FOUND",
         errorMessage: "Submission Not Found or Has been deleted!",
       });
       return;
@@ -146,6 +148,7 @@ export const getSubmissionById = async (req: express.Request, res: express.Respo
 
     const submission = submissionSnapshot.data() as Submission;
     const likes = likeSnapshot.data().count;
+    const user = await admin.auth().getUser(submission.createdBy);
 
     res.status(201).json({
       isError: false,
@@ -156,7 +159,7 @@ export const getSubmissionById = async (req: express.Request, res: express.Respo
         screenshot: submission.screenshot,
         createdAt: submission.createdAt,
         updatedAt: submission.updatedAt,
-        createdBy: submission.createdBy,
+        createdBy: user.displayName || "Anonymous",
         description: submission.description,
         likes,
       },
@@ -190,6 +193,8 @@ export const getAllSubmissions = async (req: express.Request, res: express.Respo
           .count()
           .get();
 
+      const user = await admin.auth().getUser(submission.createdBy);
+
       return {
         id: doc.id,
         title: submission.title,
@@ -197,7 +202,7 @@ export const getAllSubmissions = async (req: express.Request, res: express.Respo
         screenshot: submission.screenshot,
         createdAt: submission.createdAt,
         updatedAt: submission.updatedAt,
-        createdBy: submission.createdBy,
+        createdBy: user.displayName || "Anonymous",
         description: submission.description,
         likes: likeSnapshot.data().count,
       };

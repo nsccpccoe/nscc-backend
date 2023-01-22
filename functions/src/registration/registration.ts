@@ -1,8 +1,8 @@
 import * as express from "express";
-import {firestore} from "firebase-admin";
+import {firestore, auth} from "firebase-admin";
 import {CustomError, CustomResult} from "../interfaces/api";
 import * as cors from "cors";
-import auth, {AuthenticatedRequest} from "../middleware/auth";
+import authMiddleware, {AuthenticatedRequest} from "../middleware/auth";
 import {Field, fields} from "./fields";
 
 const app = express();
@@ -20,7 +20,7 @@ interface FieldStore {
 type FieldsResult = CustomResult<FieldStore>
 type RegisterResult = CustomResult<{ eventId: string, registered: boolean }>
 
-app.get("/:eventId/fields", auth, async (req: express.Request, res: express.Response<FieldsResult | CustomError>) => {
+app.get("/:eventId/fields", authMiddleware, async (req: express.Request, res: express.Response<FieldsResult | CustomError>) => {
   try {
     const eventId = req.params.eventId;
     const user = (<AuthenticatedRequest>req).user;
@@ -110,7 +110,7 @@ app.get("/:eventId/fields", auth, async (req: express.Request, res: express.Resp
   }
 });
 
-app.get("/:eventId/status", auth, async (req: express.Request, res: express.Response<RegisterResult | CustomError>) => {
+app.get("/:eventId/status", authMiddleware, async (req: express.Request, res: express.Response<RegisterResult | CustomError>) => {
   try {
     const eventId = req.params.eventId;
     const user = (<AuthenticatedRequest>req).user;
@@ -133,7 +133,7 @@ app.get("/:eventId/status", auth, async (req: express.Request, res: express.Resp
   }
 });
 
-app.post("/:eventId", auth, async (req: express.Request, res: express.Response<RegisterResult | CustomError>) => {
+app.post("/:eventId", authMiddleware, async (req: express.Request, res: express.Response<RegisterResult | CustomError>) => {
   try {
     const eventId = req.params.eventId;
     const user = (<AuthenticatedRequest>req).user;
@@ -175,6 +175,12 @@ app.post("/:eventId", auth, async (req: express.Request, res: express.Response<R
 
     if (Object.entries(userData).length > 0) {
       await db.collection("accounts").doc(user.uid).set(userData, {merge: true});
+    }
+
+    if ("displayName" in req.body) {
+      await auth().updateUser(user.uid, {
+        displayName: req.body["displayName"],
+      });
     }
 
     await db.collection("events").doc(eventId).collection("registrations").doc(user.uid).set({
