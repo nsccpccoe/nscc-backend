@@ -240,6 +240,7 @@ export const upvote = async (req: express.Request, res: express.Response<UpvoteR
           submissionID: submissionID,
           uid: user.uid,
           timestamp: Date.now(),
+          verified: user.emailVerified,
         }, {merge: true});
 
     res.status(200).json({
