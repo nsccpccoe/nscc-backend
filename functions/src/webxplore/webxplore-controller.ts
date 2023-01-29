@@ -21,6 +21,7 @@ interface Submission {
   createdBy: string
   description: string
   likes: number
+  validLikes: number
 }
 
 type SubmissionResult = CustomResult<Submission>
@@ -125,6 +126,7 @@ export const submit = async (req: express.Request, res: express.Response<Submiss
         createdBy: user.displayName || "Anonymous",
         description: submission.description,
         likes: 0,
+        validLikes: 0,
       },
     });
   } catch (e) {
@@ -155,8 +157,15 @@ export const getSubmissionById = async (req: express.Request, res: express.Respo
         .count()
         .get();
 
+    const validLikesSnapshot = await db.collection(likesCollection)
+        .where("submissionID", "==", _id)
+        .where("verified", "==", true)
+        .count()
+        .get();
+
     const submission = submissionSnapshot.data() as Submission;
     const likes = likeSnapshot.data().count;
+    const validLikes = validLikesSnapshot.data().count;
     const user = await admin.auth().getUser(submission.createdBy);
 
     res.status(201).json({
@@ -171,6 +180,7 @@ export const getSubmissionById = async (req: express.Request, res: express.Respo
         createdBy: user.displayName || "Anonymous",
         description: submission.description,
         likes,
+        validLikes,
       },
     });
   } catch (e) {
@@ -201,6 +211,11 @@ export const getAllSubmissions = async (req: express.Request, res: express.Respo
           .where("submissionID", "==", doc.id)
           .count()
           .get();
+      const validLikesSnapshot = await db.collection(likesCollection)
+          .where("submissionID", "==", doc.id)
+          .where("verified", "==", true)
+          .count()
+          .get();
 
       const user = await admin.auth().getUser(submission.createdBy);
 
@@ -214,6 +229,7 @@ export const getAllSubmissions = async (req: express.Request, res: express.Respo
         createdBy: user.displayName || "Anonymous",
         description: submission.description,
         likes: likeSnapshot.data().count,
+        validLikes: validLikesSnapshot.data().count,
       };
     });
 
