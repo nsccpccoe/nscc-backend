@@ -62,6 +62,15 @@ export const submit = async (req: express.Request, res: express.Response<Submiss
     const {url} = req.body;
     const user = (<AuthenticatedRequest>req).user;
 
+    if (Date.now() >= 1674973800000) {
+      res.status(409).json({
+        isError: true,
+        errorCode: "NOT_ALLOWED",
+        errorMessage: "Hackathon Ended, Submissions Not Allowed!",
+      });
+      return;
+    }
+
     if (typeof url !== "string") {
       res.status(400).json({
         isError: true,
@@ -233,6 +242,15 @@ export const upvote = async (req: express.Request, res: express.Response<UpvoteR
   try {
     const {submissionID} = req.body;
     const user = (<AuthenticatedRequest>req).user;
+
+    if (Date.now() >= 1674973800000) {
+      res.status(409).json({
+        isError: true,
+        errorCode: "NOT_ALLOWED",
+        errorMessage: "Hackathon Ended, Voting Not Allowed!",
+      });
+      return;
+    }
 
     await db.collection(likesCollection)
         .doc(`${submissionID}#${user.uid}`)
