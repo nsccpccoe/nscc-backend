@@ -1,7 +1,8 @@
 import * as express from "express";
-import {firestore} from "firebase-admin";
-import {CustomError, CustomResult} from "../interfaces/api";
-import authMiddleware, {AuthenticatedRequest} from "../middleware/auth";
+import { auth, firestore } from "firebase-admin";
+import { UserRecord } from "firebase-admin/auth";
+import { CustomError, CustomResult } from "../interfaces/api";
+import authMiddleware, { AuthenticatedRequest } from "../middleware/auth";
 
 const app = express();
 app.use(express.json());
@@ -17,16 +18,15 @@ interface UserStore {
   leetcode?: string
 }
 
-
-type UserResult = CustomResult<UserStore & { uid: string}>
+type UserResult = CustomResult<UserStore & { uid: string }>
 
 app.get("/:uid", async (req, res: express.Response<UserResult | CustomError>) => {
   const uid = req.params.uid as string;
   try {
     const userSnapshot = await firestore()
-        .collection("accounts")
-        .doc(uid)
-        .get();
+      .collection("accounts")
+      .doc(uid)
+      .get();
 
     if (!userSnapshot.exists) {
       res.status(404).json({
@@ -60,9 +60,9 @@ app.get("/:uid", async (req, res: express.Response<UserResult | CustomError>) =>
   }
 });
 
-app.post("/update", authMiddleware, async (req, res: express.Response<UserResult | CustomError>) => {
+app.post("/update", authMiddleware, async (req: express.Request, res: express.Response<UserResult | CustomError>) => {
   const user = (<AuthenticatedRequest>req).user;
-  const {displayName, phoneNumber, codechef, codeforces, hackerrank, leetcode} = req.body;
+  const { displayName, phoneNumber, codechef, codeforces, hackerrank, leetcode } = req.body;
 
   const updatedDoc: Partial<UserStore> = {
     displayName,
@@ -75,8 +75,8 @@ app.post("/update", authMiddleware, async (req, res: express.Response<UserResult
 
   try {
     await firestore().collection("accounts")
-        .doc(user.uid)
-        .update(<{ [x: string]: string; }>updatedDoc);
+      .doc(user.uid)
+      .update(<{ [x: string]: string; }>updatedDoc);
 
     res.status(201).json({
       isError: false,
@@ -89,6 +89,28 @@ app.post("/update", authMiddleware, async (req, res: express.Response<UserResult
       errorMessage: (<Error>e).message,
     });
   }
+});
+
+app.post("/createUserWithEmailAndPassword", (req, res) => {
+  const { displayName, email, password } = req.body;
+  console.log(req.body)
+  auth()
+    .createUser({ email, displayName, password })
+    .then(function (userRecord: UserRecord) {
+      console.log(userRecord);
+      auth()
+        .createCustomToken(userRecord.uid)
+        .then(token => {
+          return res.json({
+            token
+          })
+        });
+    })
+    .catch(function (error) {
+      console.error("Failed to create new user");
+      console.error(error);
+      res.status(500).json({ status: 'error', error: 'Unable to process the request' });
+    });
 });
 
 export const accountsHandler = app;
