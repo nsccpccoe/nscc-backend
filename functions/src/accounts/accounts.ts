@@ -1,5 +1,5 @@
 import * as express from "express";
-import {firestore} from "firebase-admin";
+import * as admin from "firebase-admin";
 import {CustomError, CustomResult} from "../interfaces/api";
 import authMiddleware, {AuthenticatedRequest} from "../middleware/auth";
 
@@ -17,13 +17,13 @@ interface UserStore {
   leetcode?: string
 }
 
-
 type UserResult = CustomResult<UserStore & { uid: string}>
+// type VerifyEmailResult = CustomResult<null>
 
 app.get("/:uid", async (req, res: express.Response<UserResult | CustomError>) => {
   const uid = req.params.uid as string;
   try {
-    const userSnapshot = await firestore()
+    const userSnapshot = await admin.firestore()
         .collection("accounts")
         .doc(uid)
         .get();
@@ -60,7 +60,7 @@ app.get("/:uid", async (req, res: express.Response<UserResult | CustomError>) =>
   }
 });
 
-app.post("/update", authMiddleware, async (req, res: express.Response<UserResult | CustomError>) => {
+app.post("/update", authMiddleware, async (req: express.Request, res: express.Response<UserResult | CustomError>) => {
   const user = (<AuthenticatedRequest>req).user;
   const {displayName, phoneNumber, codechef, codeforces, hackerrank, leetcode} = req.body;
 
@@ -74,7 +74,7 @@ app.post("/update", authMiddleware, async (req, res: express.Response<UserResult
   };
 
   try {
-    await firestore().collection("accounts")
+    await admin.firestore().collection("accounts")
         .doc(user.uid)
         .update(<{ [x: string]: string; }>updatedDoc);
 
