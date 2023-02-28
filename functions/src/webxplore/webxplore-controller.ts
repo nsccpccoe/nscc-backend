@@ -22,6 +22,9 @@ interface Submission {
   description: string
   likes: number
   validLikes: number
+  judge: string
+  lighthouse: number
+  status: string
 }
 
 type SubmissionResult = CustomResult<Submission>
@@ -127,6 +130,9 @@ export const submit = async (req: express.Request, res: express.Response<Submiss
         description: submission.description,
         likes: 0,
         validLikes: 0,
+        lighthouse: 0,
+        status: "Eligibility Check Pending",
+        judge: "Not Assigned",
       },
     });
   } catch (e) {
@@ -181,6 +187,9 @@ export const getSubmissionById = async (req: express.Request, res: express.Respo
         description: submission.description,
         likes,
         validLikes,
+        judge: submission.judge,
+        lighthouse: submission.lighthouse,
+        status: submission.status,
       },
     });
   } catch (e) {
@@ -230,6 +239,9 @@ export const getAllSubmissions = async (req: express.Request, res: express.Respo
         description: submission.description,
         likes: likeSnapshot.data().count,
         validLikes: validLikesSnapshot.data().count,
+        judge: submission.judge,
+        lighthouse: submission.lighthouse,
+        status: submission.status,
       };
     });
 
