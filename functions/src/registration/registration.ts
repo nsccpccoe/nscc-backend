@@ -4,6 +4,7 @@ import {CustomError, CustomResult} from "../interfaces/api";
 import * as cors from "cors";
 import authMiddleware, {AuthenticatedRequest} from "../middleware/auth";
 import {Field, fields} from "./fields";
+import axios from "axios";
 
 const app = express();
 app.use(cors());
@@ -191,6 +192,37 @@ app.post("/:eventId", authMiddleware, async (req: express.Request, res: express.
       modifiedAt: new Date(),
       ...userData,
     }, {merge: true});
+
+    if (eventId === "codewars") {
+      const options = {
+        method: "POST",
+        url: "https://api.pccoeieee.org/event/register/codewars",
+        headers: {
+          "Accept": "*/*",
+          "Content-Type": "application/json",
+        },
+        data: {
+          displayName: req.body["displayName"],
+          email: user.email,
+          phoneNumber: req.body["phoneNumber"],
+          collegeName: req.body["collegeName"],
+          collegeBranch: req.body["collegeBranch"],
+          graduationYear: req.body["graduationYear"],
+        },
+      };
+
+      try {
+        await axios.request(options);
+        await db.collection("events").doc(eventId).collection("registrations").doc(user.uid).set({
+          sharedWithITSA: true,
+        }, {merge: true});
+      } catch (error) {
+        console.error("[Praxis Error]: ", error);
+        await db.collection("events").doc(eventId).collection("registrations").doc(user.uid).set({
+          sharedWithITSA: false,
+        }, {merge: true});
+      }
+    }
 
     res.status(200).json({
       isError: false,
